@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JUEGO SENATIC - LEVEL 3</title>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: "Courier New", monospace;
+      touch-action: none;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(9, 19, 40, 0.98), #000 85%);
+      color: #00ffd5;
+      text-align: center;
+      box-sizing: border-box;
+      border: 8px double #00ffd5;
+    }
+
+    .panel {
+      background: rgba(0, 12, 24, 0.94);
+      border: 2px solid #00ffd5;
+      border-radius: 18px;
+      box-shadow: 0 0 35px rgba(0, 255, 213, 0.5);
+      padding: 32px 28px;
+      max-width: 520px;
+      width: calc(100% - 32px);
+    }
+
+    .panel h1 {
+      margin: 0 0 10px 0;
+      letter-spacing: 3px;
+      font-size: 2.1rem;
+    }
+
+    .panel p {
+      margin: 10px 0;
+      line-height: 1.5;
+      font-size: 1rem;
+      color: #c7fff6;
+    }
+
+    input {
+      width: min(340px, 85vw);
+      padding: 14px 16px;
+      margin-top: 18px;
+      border-radius: 12px;
+      border: 1px solid #00ffd5;
+      background: #000;
+      color: #00ffd5;
+      font: inherit;
+      font-size: 18px;
+      text-transform: uppercase;
+      text-align: center;
+      outline: none;
+    }
+
+    .btn {
+      margin-top: 18px;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 12px;
+      background: #00ffd5;
+      color: #00121b;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      min-width: 220px;
+      box-shadow: 0 0 18px rgba(0, 255, 213, 0.35);
+    }
+
+    .btn.secondary {
+      background: rgba(0, 255, 213, 0.08);
+      color: #00ffd5;
+      border: 1px solid #00ffd5;
+      box-shadow: none;
+      margin-left: 8px;
+    }
+
+    #ui-top {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 20;
+      display: none;
+      background: rgba(0, 12, 24, 0.88);
+      color: #00ffd5;
+      padding: 14px 16px;
+      border: 2px solid #00ffd5;
+      border-radius: 12px;
+      min-width: 180px;
+      box-shadow: 0 0 20px rgba(0, 255, 213, 0.18);
+    }
+
+    #hint {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 20;
+      display: none;
+      background: rgba(0, 12, 24, 0.8);
+      color: #fff;
+      padding: 12px 14px;
+      border: 1px solid rgba(0, 255, 213, 0.5);
+      border-radius: 10px;
+      max-width: 320px;
+      text-align: right;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .controles-movil {
+      position: absolute;
+      bottom: 16px;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      display: none;
+      justify-content: space-between;
+      padding: 0 18px;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+
+    .d-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 56px);
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .d-btn,
+    .btn-salto {
+      width: 56px;
+      height: 56px;
+      border: 2px solid #00ffd5;
+      border-radius: 12px;
+      color: #00ffd5;
+      background: rgba(0, 255, 213, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-user-select: none;
+      user-select: none;
+      font-weight: 700;
+    }
+
+    .btn-salto {
+      width: 110px;
+      height: 82px;
+      pointer-events: auto;
+      font-size: 14px;
+    }
+
+    .small {
+      font-size: 0.85rem;
+      color: #8dfbe9;
+    }
+
+    #game-over-screen {
+      display: none;
+    }
+  </style>
+
+  <script>
+    let nombrePiloto = localStorage.getItem('nombrePiloto') || "PILOTO";
+    let juegoIniciado = false;
+
+    const START_POS = { x: 0, y: 3, z: 0 };
+
+    function iniciarNivel() {
+      nombrePiloto = localStorage.getItem('nombrePiloto') || "PILOTO";
+      localStorage.setItem('nombrePiloto', nombrePiloto);
+      document.querySelector('#user-display').innerText = nombrePiloto;
+
+      document.querySelector('#pantalla-registro').style.display = 'none';
+      document.querySelector('#ui-top').style.display = 'block';
+      document.querySelector('#hint').style.display = 'block';
+
+      if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        document.querySelector('.controles-movil').style.display = 'flex';
+      }
+
+      const sonido = document.querySelector('#audio-fondo');
+      if (sonido && sonido.components && sonido.components.sound) {
+        sonido.components.sound.playSound();
+      }
+
+      setTimeout(() => {
+        juegoIniciado = true;
+      }, 250);
+    }
+
+    function volverAlInicio() {
+      localStorage.removeItem('puntajeAcumulado');
+      window.location.href = 'index.html';
+    }
+
+    AFRAME.registerComponent('motor-gameplay', {
+      init: function () {
+        const puntajeGuardado = localStorage.getItem('puntajeAcumulado');
+        this.puntos = puntajeGuardado ? parseInt(puntajeGuardado, 10) : 0;
+        this.vidas = 3;
+        this.invulnerable = false;
+        this.puedeSaltar = true;
+        this.alturaMax = 0;
+        this.keys = {};
+        this.fin = false;
+
+        this.actualizarUI();
+
+        window.addEventListener('keydown', (e) => this.keys[e.code] = true);
+        window.addEventListener('keyup', (e) => this.keys[e.code] = false);
+
+        const bindTouch = (id, code) => {
+          const el = document.querySelector(id);
+          if (!el) return;
+          el.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.keys[code] = true;
+          }, { passive: false });
+          el.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.keys[code] = false;
+          }, { passive: false });
+        };
+
+        bindTouch('#m-up', 'KeyW');
+        bindTouch('#m-down', 'KeyS');
+        bindTouch('#m-left', 'KeyA');
+        bindTouch('#m-right', 'KeyD');
+        bindTouch('#m-jump', 'Space');
+
+        this.el.addEventListener('collide', (e) => {
+          if (!juegoIniciado || this.fin) return;
+          const target = e.detail && e.detail.body && e.detail.body.el;
+          if (!target) return;
+
+          if (target.classList.contains('peligro') || target.id === 'void-zone') {
+            this.perderVida(true);
+            return;
+          }
+
+          if (target.classList.contains('colectible')) {
+            if (!target.dataset.tomado) {
+              target.dataset.tomado = "1";
+              target.setAttribute('visible', 'false');
+              this.puntos += 250;
+              this.actualizarUI();
+              if (navigator.vibrate) navigator.vibrate(60);
+            }
+          }
+
+          if (target.classList.contains('suelo')) {
+            const yActual = Math.round(target.object3D.position.y);
+            if (yActual > this.alturaMax) {
+              this.puntos += 150;
+              this.alturaMax = yActual;
+              this.actualizarUI();
+            }
+          }
+
+          if (target.id === 'meta') {
+            this.completarJuego();
+          }
+        });
+      },
+
+      reiniciarJugador: function () {
+        if (!this.el.body) return;
+        this.el.body.position.set(START_POS.x, START_POS.y, START_POS.z);
+        this.el.body.velocity.set(0, 0, 0);
+        this.el.body.angularVelocity.set(0, 0, 0);
+        this.el.body.quaternion.set(0, 0, 0, 1);
+      },
+
+      perderVida: function (porCaida = false) {
+        if (this.invulnerable || this.fin) return;
+
+        this.invulnerable = true;
+        this.vidas -= 1;
+        this.actualizarUI();
+
+        if (navigator.vibrate) {
+          navigator.vibrate(porCaida ? [80, 60, 80] : 120);
+        }
+
+        if (this.vidas <= 0) {
+          localStorage.removeItem('puntajeAcumulado');
+          this.mostrarFinal('GAME OVER', 'Perdiste todas las vidas.');
+          return;
+        }
+
+        this.reiniciarJugador();
+
+        setTimeout(() => {
+          this.invulnerable = false;
+        }, 1100);
+      },
+
+      completarJuego: function () {
+        if (this.fin) return;
+        this.fin = true;
+        this.puntos += 5000;
+        localStorage.setItem('puntajeAcumulado', this.puntos);
+
+        if (navigator.vibrate) navigator.vibrate([50, 50, 50, 50, 450]);
+
+        this.mostrarFinal(
+          'Felicidades, completaste el juego!',
+          `${nombrePiloto}, puntaje total: ${this.puntos}`
+        );
+      },
+
+      mostrarFinal: function (titulo, texto) {
+        juegoIniciado = false;
+        document.querySelector('#game-over-screen').style.display = 'flex';
+        document.querySelector('#final-title').innerText = titulo;
+        document.querySelector('#final-score').innerText = texto;
+
+        const controles = document.querySelector('.controles-movil');
+        if (controles) controles.style.display = 'none';
+      },
+
+      actualizarUI: function () {
+        const puntosVal = document.querySelector('#puntos-val');
+        const vidasVal = document.querySelector('#vidas-val');
+        if (puntosVal) puntosVal.innerText = this.puntos;
+        if (vidasVal) vidasVal.innerText = "❤️".repeat(Math.max(0, this.vidas));
+      },
+
+      tick: function () {
+        if (!this.el.body || !juegoIniciado || this.fin) return;
+
+        this.el.body.quaternion.set(0, 0, 0, 1);
+        this.el.body.angularVelocity.set(0, 0, 0);
+
+        const v = this.el.body.velocity;
+        const f = 7.2;
+
+        if (this.keys['KeyW']) v.z = -f; else if (this.keys['KeyS']) v.z = f; else v.z = 0;
+        if (this.keys['KeyA']) v.x = -f; else if (this.keys['KeyD']) v.x = f; else v.x = 0;
+
+        if (this.keys['Space']) {
+          if (Math.abs(v.y) < 0.1 && this.puedeSaltar) {
+            v.y = 12.5;
+            this.puedeSaltar = false;
+          }
+        } else {
+          this.puedeSaltar = true;
+        }
+      }
+    });
+
+    AFRAME.registerComponent('seguimiento-camara', {
+      init: function () {
+        this.objetivo = document.querySelector('#jugador');
+        this.keys = {};
+        this.rot = { x: -22, y: 0, z: 0 };
+
+        window.addEventListener('keydown', (e) => this.keys[e.code] = true);
+        window.addEventListener('keyup', (e) => this.keys[e.code] = false);
+      },
+      tick: function () {
+        if (!this.objetivo) return; // Se eliminó el bloqueo !juegoIniciado para que siga en todo momento
+
+        // Sigue al jugador con un lerp (suavizado)
+        this.el.object3D.position.lerp(this.objetivo.object3D.position, 0.1);
+
+        if (this.keys['ArrowLeft']) this.rot.y += 2.2;
+        if (this.keys['ArrowRight']) this.rot.y -= 2.2;
+        if (this.keys['ArrowUp']) this.rot.x -= 1.0;
+        if (this.keys['ArrowDown']) this.rot.x += 1.0;
+
+        this.rot.x = Math.max(-60, Math.min(18, this.rot.x));
+        this.el.setAttribute('rotation', `${this.rot.x} ${this.rot.y} ${this.rot.z}`);
+      }
+    });
+
+    AFRAME.registerComponent('plataforma-movil-x', {
+      schema: {
+        amp: { type: 'number', default: 4 },
+        speed: { type: 'number', default: 1 },
+        base: { type: 'number', default: 0 }
+      },
+      init: function () {
+        this.t = 0;
+        this.baseX = this.data.base || this.el.object3D.position.x;
+      },
+      tick: function (time, delta) {
+        const seg = (delta || 16.7) / 1000;
+        this.t += seg * this.data.speed;
+        const x = this.baseX + Math.sin(this.t) * this.data.amp;
+        this.el.object3D.position.x = x;
+      }
+    });
+
+    AFRAME.registerComponent('plataforma-movil-z', {
+      schema: {
+        amp: { type: 'number', default: 4 },
+        speed: { type: 'number', default: 1 },
+        base: { type: 'number', default: 0 }
+      },
+      init: function () {
+        this.t = 0;
+        this.baseZ = this.data.base || this.el.object3D.position.z;
+      },
+      tick: function (time, delta) {
+        const seg = (delta || 16.7) / 1000;
+        this.t += seg * this.data.speed;
+        const z = this.baseZ + Math.sin(this.t) * this.data.amp;
+        this.el.object3D.position.z = z;
+      }
+    });
+
+    AFRAME.registerComponent('plataforma-fragil', {
+      init: function () {
+        this.cayendo = false;
+        this.timer = 0;
+
+        this.el.addEventListener('collide', (e) => {
+          const target = e.detail && e.detail.body && e.detail.body.el;
+          if (!target || target.id !== 'jugador' || this.cayendo) return;
+          this.cayendo = true;
+          this.timer = 0;
+        });
+      },
+      tick: function (time, delta) {
+        if (!this.cayendo) return;
+        const seg = (delta || 16.7) / 1000;
+        this.timer += seg;
+        this.el.object3D.position.y -= 4.5 * seg;
+
+        if (this.timer > 0.35) {
+          this.el.removeAttribute('static-body');
+        }
+
+        if (this.timer > 1.0) {
+          this.el.setAttribute('visible', 'false');
+        }
+      }
+    });
+  </script>
+</head>
+
+<body>
+  <div class="controles-movil">
+    <div class="d-pad">
+      <div></div><div id="m-up" class="d-btn">▲</div><div></div>
+      <div id="m-left" class="d-btn">◀</div><div id="m-down" class="d-btn">▼</div><div id="m-right" class="d-btn">▶</div>
+    </div>
+    <div id="m-jump" class="btn-salto">SALTO</div>
+  </div>
+
+  <div id="pantalla-registro" class="overlay">
+    <div class="panel">
+      <h1>LEVEL 3 · DIFÍCIL</h1>
+      <p>Este nivel es el más largo y peligroso. Hay plataformas móviles, plataformas frágiles, obstáculos que quitan vida y zonas de vacío que te regresan al inicio.</p>
+      <p class="small">Consejo: avanza con calma. No saltes de más y mira bien la dirección de las plataformas.</p>
+      <button class="btn" onclick="iniciarNivel()">INICIAR NIVEL</button>
+      <br />
+      <button class="btn secondary" onclick="volverAlInicio()">VOLVER AL INICIO</button>
+    </div>
+  </div>
+
+  <div id="ui-top">
+    ID: <span id="user-display">---</span><br />
+    PTS: <span id="puntos-val">0</span><br />
+    VIDAS: <span id="vidas-val">❤️❤️❤️</span>
+  </div>
+
+  <div id="hint">
+    <div><strong>Objetivo:</strong> llegar a la meta al final.</div>
+    <div><strong>Peligros:</strong> tocar rojo o caer al vacío resta una vida.</div>
+    <div><strong>Inicio:</strong> vuelves al principio si fallas.</div>
+  </div>
+
+  <div id="game-over-screen" class="overlay">
+    <div class="panel">
+      <h1 id="final-title">TERMINADO</h1>
+      <p id="final-score"></p>
+      <button class="btn" onclick="location.reload()">REINTENTAR</button>
+      <button class="btn secondary" onclick="volverAlInicio()">SALIR AL INICIO</button>
+    </div>
+  </div>
+
+  <a-scene physics="gravity: -18; friction: 0.01;">
+    <a-assets>
+      <audio id="musica-fondo" src="img/videos/intergalactic.mp3" preload="auto"></audio>
+      <img id="mi-fondo" src="img/ChatGPT Image May 15, 2026, 04_45_21 PM.png" alt="Fondo del nivel"> 
+    </a-assets>
+
+    <a-sky src="#mi-fondo"></a-sky>
+    <a-entity light="type: ambient; intensity: 0.42; color: #7af6ff"></a-entity>
+    <a-entity light="type: directional; intensity: 0.9; color: #ffffff" position="-2 8 3"></a-entity>
+
+    <a-text value="LEVEL 3 - EL LABERINTO DEL CORE" position="0 22 -8" align="center" color="#00ffd5" scale="4 4 4"></a-text>
+    <a-text value="PLATAFORMAS MOVILES • CAIDAS • TRAMPAS • VACIO" position="0 20 -8" align="center" color="#a6fff4" scale="2.2 2.2 2.2"></a-text>
+
+    <a-box class="suelo" static-body position="0 0 0" width="10" height="0.4" depth="10" color="#1c1f2e"></a-box>
+
+    <a-box class="suelo" static-body position="0 3 -9" width="4" height="0.4" depth="4" color="#2e3145"></a-box>
+    <a-box class="suelo" static-body position="-7 5 -15" width="4" height="0.4" depth="4" color="#332a4b"></a-box>
+    <a-box class="suelo" static-body position="-12 7 -23" width="5" height="0.4" depth="5" color="#283347"></a-box>
+    <a-box class="suelo" static-body position="-18 9 -31" width="4" height="0.4" depth="4" color="#2d3a50"></a-box>
+    <a-box class="suelo" static-body position="-11 11 -40" width="4" height="0.4" depth="4" color="#38334f"></a-box>
+    <a-box class="suelo" static-body position="-2 13 -47" width="4" height="0.4" depth="4" color="#2d3148"></a-box>
+
+    <a-box class="suelo" static-body position="8 15 -55" width="4" height="0.4" depth="4" color="#30384a"></a-box>
+    <a-box class="suelo" static-body position="0 17 -63" width="3.5" height="0.4" depth="3.5" color="#3a3450"></a-box>
+    <a-box class="suelo" static-body position="-9 19 -70" width="4" height="0.4" depth="4" color="#34384d"></a-box>
+    <a-box class="suelo" static-body position="-17 21 -78" width="4" height="0.4" depth="4" color="#2d3148"></a-box>
+    <a-box class="suelo" static-body position="-8 23 -86" width="4" height="0.4" depth="4" color="#3c3350"></a-box>
+
+    <a-box class="suelo" static-body position="4 8 -24" width="3" height="0.35" depth="3" color="#5c3d8a"></a-box>
+    <a-box class="suelo" kinematic-body plataforma-movil-x="amp: 4; speed: 1.3" position="2 10 -32" width="3" height="0.35" depth="3" color="#7a4bd6"></a-box>
+    <a-box class="suelo" kinematic-body plataforma-movil-z="amp: 4; speed: 1.4" position="-6 12 -38" width="3" height="0.35" depth="3" color="#6f4ad1"></a-box>
+
+    <a-box class="suelo" static-body plataforma-fragil position="14 16 -56" width="3.5" height="0.3" depth="3.5" color="#ffcc33"></a-box>
+    <a-box class="suelo" static-body plataforma-fragil position="18 18 -64" width="3.2" height="0.3" depth="3.2" color="#ff9f1c"></a-box>
+    <a-box class="suelo" static-body plataforma-fragil position="13 20 -72" width="3.2" height="0.3" depth="3.2" color="#ff8c42"></a-box>
+
+    <a-box class="suelo" static-body position="2 24 -90" width="2.8" height="0.3" depth="8" color="#394353"></a-box>
+    <a-box class="suelo" static-body position="2 26 -100" width="2.2" height="0.3" depth="7" color="#465164"></a-box>
+    <a-box class="suelo" static-body position="-4 28 -109" width="2.2" height="0.3" depth="7" color="#394353"></a-box>
+    <a-box class="suelo" static-body position="5 30 -118" width="2.2" height="0.3" depth="7" color="#465164"></a-box>
+
+    <a-box class="suelo" static-body position="0 32 -128" width="7" height="0.3" depth="4" color="#1f3947"></a-box>
+    <a-box class="suelo" static-body position="-10 34 -136" width="4" height="0.3" depth="4" color="#27495a"></a-box>
+    <a-box class="suelo" static-body position="-2 36 -144" width="4" height="0.3" depth="4" color="#294d60"></a-box>
+    <a-box class="suelo" static-body position="8 38 -152" width="4" height="0.3" depth="4" color="#31556a"></a-box>
+    <a-box class="suelo" static-body position="0 40 -160" width="5" height="0.3" depth="6" color="#38677d"></a-box>
+
+    <a-sphere class="colectible" static-body position="-2 4 -12" radius="0.35" color="#00ffd5" material="emissive:#00ffd5; emissiveIntensity:2"></a-sphere>
+    <a-sphere class="colectible" static-body position="-10 8 -28" radius="0.35" color="#00ffd5" material="emissive:#00ffd5; emissiveIntensity:2"></a-sphere>
+    <a-sphere class="colectible" static-body position="6 15 -54" radius="0.35" color="#00ffd5" material="emissive:#00ffd5; emissiveIntensity:2"></a-sphere>
+    <a-sphere class="colectible" static-body position="-14 22 -80" radius="0.35" color="#00ffd5" material="emissive:#00ffd5; emissiveIntensity:2"></a-sphere>
+    <a-sphere class="colectible" static-body position="2 33 -132" radius="0.35" color="#00ffd5" material="emissive:#00ffd5; emissiveIntensity:2"></a-sphere>
+
+    <a-box class="peligro" static-body position="3 3 -8" width="1" height="1.6" depth="1" color="#ff0000"></a-box>
+    <a-box class="peligro" static-body position="-4 5 -15" width="1" height="1.6" depth="1" color="#ff0000"></a-box>
+    <a-box class="peligro" static-body position="-9 7 -22" width="1" height="2" depth="1" color="#ff0000"></a-box>
+    <a-box class="peligro" static-body position="-16 9 -30" width="1" height="2.2" depth="1" color="#ff0000"></a-box>
+    <a-box class="peligro" static-body position="11 14 -48" width="1" height="2.5" depth="1" color="#ff0000"></a-box>
+    <a-box class="peligro" static-body position="19 18 -62" width="1" height="2.5" depth="1" color="#ff0000"></a-box>
+    <a-box class="peligro" static-body position="-12 23 -82" width="1" height="2.5" depth="1" color="#ff0000"></a-box>
+    <a-box class="peligro" static-body position="4 35 -145" width="1" height="2.8" depth="1" color="#ff0000"></a-box>
+
+    <a-box class="peligro" kinematic-body plataforma-movil-z="amp: 2.2; speed: 2.2" position="1 10 -31" width="0.8" height="2.8" depth="0.8" color="#ff2a2a"></a-box>
+    <a-box class="peligro" kinematic-body plataforma-movil-x="amp: 3.2; speed: 1.7" position="-6 12 -38" width="0.8" height="2.8" depth="0.8" color="#ff2a2a"></a-box>
+    <a-box class="peligro" kinematic-body plataforma-movil-z="amp: 2.5; speed: 2.0" position="13 20 -70" width="0.8" height="2.8" depth="0.8" color="#ff2a2a"></a-box>
+
+    <a-entity id="meta" static-body position="0 42 -172">
+      <a-box width="16" height="0.5" depth="16" color="#00ffd5" material="emissive:#00ffd5; emissiveIntensity: 2.5"></a-box>
+      <a-text value="META FINAL" align="center" position="0 4 0" scale="10 10 10" color="#ffffff"></a-text>
+      <a-light type="point" intensity="3" color="#00ffd5" position="0 5 0"></a-light>
+    </a-entity>
+
+    <a-box id="void-zone" class="peligro" static-body position="0 -18 -80" width="350" height="1" depth="360" material="opacity: 0; transparent: true; shader: flat"></a-box>
+
+    <a-entity id="jugador"
+              position="0 3 0"
+              scale="1.5 1.5 1.5"
+              motor-gameplay
+              dynamic-body="mass: 2; fixedRotation: true">
+
+        <a-entity position="0 -0.95 0" rotation="0 180 0">
+            <a-box position="-0.20 -0.95 0" depth="0.32" height="0.98" width="0.34" color="#1f4d1f"></a-box>
+            <a-box position="0.20 -0.95 0" depth="0.32" height="0.98" width="0.34" color="#1f4d1f"></a-box>
+            <a-box position="0 -0.36 0" depth="0.52" height="0.50" width="0.90" color="#5b2a86"></a-box>
+            <a-cylinder position="0 0.18 0" radius="0.52" height="0.45" color="#2f8f2f" segments-radial="8"></a-cylinder>
+            <a-cylinder position="0 0.62 0" radius="0.58" height="0.92" color="#2f8f2f" segments-radial="8"></a-cylinder>
+            <a-sphere position="0 0.88 0.02" radius="0.48" color="#2f8f2f"></a-sphere>
+            <a-sphere position="-0.42 0.82 0" radius="0.22" color="#2f8f2f"></a-sphere>
+            <a-sphere position="0.42 0.82 0" radius="0.22" color="#2f8f2f"></a-sphere>
+            <a-box position="-0.56 0.50 0" depth="0.30" height="0.92" width="0.34" color="#2f8f2f" rotation="0 0 6"></a-box>
+            <a-box position="0.56 0.50 0" depth="0.30" height="0.92" width="0.34" color="#2f8f2f" rotation="0 0 -6"></a-box>
+            <a-box position="-0.58 0.02 0.02" depth="0.32" height="0.72" width="0.36" color="#2f8f2f" rotation="0 0 2"></a-box>
+            <a-box position="0.58 0.02 0.02" depth="0.32" height="0.72" width="0.36" color="#2f8f2f" rotation="0 0 -2"></a-box>
+            <a-sphere position="-0.60 -0.42 0.02" radius="0.20" color="#1f4d1f"></a-sphere>
+            <a-sphere position="0.60 -0.42 0.02" radius="0.20" color="#1f4d1f"></a-sphere>
+            <a-cylinder position="0 1.25 0" radius="0.20" height="0.18" color="#2f8f2f"></a-cylinder>
+            <a-sphere position="0 1.56 0" radius="0.40" color="#2f8f2f"></a-sphere>
+            <a-sphere position="0 1.70 -0.03" radius="0.29" color="#111111"></a-sphere>
+            <a-sphere position="-0.12 1.58 0.33" radius="0.035" color="#ffffff"></a-sphere>
+            <a-sphere position="0.12 1.58 0.33" radius="0.035" color="#ffffff"></a-sphere>
+            <a-sphere position="-0.12 1.58 0.36" radius="0.015" color="#000000"></a-sphere>
+            <a-sphere position="0.12 1.58 0.36" radius="0.015" color="#000000"></a-sphere>
+        </a-entity>
+    </a-entity>
+
+    <a-entity id="camara-rig" seguimiento-camara>
+      <a-camera position="0 6 15" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
+    </a-entity>
+
+  </a-scene>
+</body>
+</html>
