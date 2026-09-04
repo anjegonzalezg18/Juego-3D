@@ -1,0 +1,91 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Ciudad 360 VR - Celular</title>
+
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #instrucciones {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+
+            padding: 12px 18px;
+            border-radius: 12px;
+
+            font-family: Arial, sans-serif;
+            font-size: 15px;
+            text-align: center;
+
+            max-width: 85%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Instrucciones -->
+    <div id="instrucciones">
+        👆 Desliza el dedo para mirar alrededor<br>
+        📱 Gira el celular para explorar la ciudad<br>
+        🥽 Pulsa el botón VR para usar gafas
+    </div>
+
+    <a-scene
+        vr-mode-ui="enabled: true"
+        device-orientation-permission-ui="enabled: true">
+
+        <!-- Ciudad 360 -->
+        <a-sky
+            src="img/ChatGPT Image 4 sept 2026, 03_06_53 p.m..png"
+            rotation="0 -90 0">
+        </a-sky>
+
+        <!-- Cámara -->
+        <a-camera
+            position="0 1.6 0"
+            look-controls="enabled: true"
+            wasd-controls="enabled: false">
+        </a-camera>
+
+    </a-scene>
+
+    <script>
+
+        // Ocultar las instrucciones después de unos segundos
+        setTimeout(function() {
+            const instrucciones = document.getElementById("instrucciones");
+
+            instrucciones.style.transition = "opacity 1s";
+            instrucciones.style.opacity = "0";
+
+            setTimeout(function() {
+                instrucciones.remove();
+            }, 1000);
+
+        }, 5000);
+
+    </script>
+
+</body>
+</html>
+```
